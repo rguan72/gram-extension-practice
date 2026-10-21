@@ -33,7 +33,7 @@ import time
 import torch
 
 import data
-from data import (BATCH_SIZE, TRAIN_STEPS, DUAL_USE, DOMAIN_NAMES, N_DOMAINS,
+from data import (BATCH_SIZE, TRAIN_STEPS, DUAL_USE, DOMAIN_NAMES, N_DOMAINS, DEVICE,
                   sample_batch, sequence_losses, domain_loss, domain_metrics)
 
 # ----------------------------------------------------------------------------
@@ -53,11 +53,12 @@ EVAL_N = 512
 def train_baseline(model_mod, keep_domains, seed, steps=TRAIN_STEPS, log=None):
     torch.manual_seed(seed)
     cfg = model_mod.Config(**BASELINE_CFG)
-    model = model_mod.GPT(cfg)
+    model = model_mod.GPT(cfg).to(DEVICE)
     opt = torch.optim.AdamW(model.parameters(), lr=BASELINE_LR, weight_decay=0.0)
     gen = torch.Generator().manual_seed(seed + 1)
     keep = torch.zeros(N_DOMAINS, dtype=torch.bool)
     keep[list(keep_domains)] = True
+    keep = keep.to(DEVICE)
     for step in range(steps):
         tokens, labels = sample_batch(BATCH_SIZE, gen)
         sel = keep[labels]
@@ -75,7 +76,7 @@ def train_baseline(model_mod, keep_domains, seed, steps=TRAIN_STEPS, log=None):
 def baseline_losses(model_mod, name, keep, seed, cache_dir=".cache"):
     """Per-domain held-out losses of a baseline, cached on disk."""
     os.makedirs(cache_dir, exist_ok=True)
-    key = json.dumps(dict(v=2, name=name, keep=sorted(keep), seed=seed, steps=TRAIN_STEPS,
+    key = json.dumps(dict(v=2, name=name, keep=sorted(keep), seed=seed, steps=TRAIN_STEPS, device=str(DEVICE),
                           bs=BATCH_SIZE, cfg=BASELINE_CFG, lr=BASELINE_LR,
                           data=open(data.__file__).read()), sort_keys=True)
     path = os.path.join(cache_dir, f"baseline_{hashlib.md5(key.encode()).hexdigest()[:10]}.json")
@@ -104,6 +105,7 @@ def main():
     import model as model_mod   # noqa: E402
     import train as train_mod   # noqa: E402
 
+    print(f"device: {DEVICE}")
     print("== baselines ==")
     M_all = baseline_losses(model_mod, "all-data", list(range(N_DOMAINS)), args.seed)
     M_core = baseline_losses(model_mod, "core-only", [0], args.seed)

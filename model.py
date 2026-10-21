@@ -93,7 +93,7 @@ class GPT(nn.Module):
         module_mask    : TODO -- (B, n_modules) per-sequence mask for training.
         """
         B, T = tokens.shape
-        x = self.tok_emb(tokens) + self.pos_emb(torch.arange(T))
+        x = self.tok_emb(tokens) + self.pos_emb(torch.arange(T, device=tokens.device))
         for blk in self.blocks:
             x = blk(x, module_mask)
         return self.head(self.ln_f(x))

@@ -102,10 +102,10 @@ class GPT(nn.Module):
         """
         B, T = tokens.shape
         if module_mask is None and self.cfg.n_modules:
-            module_mask = torch.zeros(B, self.cfg.n_modules)
+            module_mask = torch.zeros(B, self.cfg.n_modules, device=tokens.device)
             for m in active_modules or []:
                 module_mask[:, m] = 1.0
-        x = self.tok_emb(tokens) + self.pos_emb(torch.arange(T))
+        x = self.tok_emb(tokens) + self.pos_emb(torch.arange(T, device=tokens.device))
         for blk in self.blocks:
             x = blk(x, module_mask)
         return self.head(self.ln_f(x))

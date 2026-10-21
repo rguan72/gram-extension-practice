@@ -49,7 +49,8 @@ Answer these by building it.
 
 ## The setting
 
-Everything is scaled down so a run takes seconds on a laptop CPU.
+Everything is scaled down so a run takes seconds on a GPU. The code expects
+CUDA (`DEVICE=cpu` forces the CPU, where a check takes about 25 s).
 
 - **Model.** A 100k-parameter, 2-layer GPT (`model.py`).
 - **Data** (`data.py`). Three domains over one 32-token vocabulary, each a
@@ -82,8 +83,8 @@ filtered models, one per subset of `{A, B}`.
 and core-only, cached after the first run), calls your `train_gram`,
 evaluates every module configuration on held-out data, and prints the loss
 table plus a PASS/FAIL line per criterion. The thresholds are at the top of
-the file and tell you how much slack you have. A run takes about 25 s once
-the baselines are cached.
+the file and tell you how much slack you have. A run takes seconds on a GPU
+once the baselines are cached.
 
 ```bash
 uv sync

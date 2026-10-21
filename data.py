@@ -24,8 +24,21 @@ context (there is no domain or topic token in the input).
 Batches are MIXED: every sequence in a batch has its own domain label. Think of
 this as a packed pretraining batch where you cannot choose to make batches
 domain-homogeneous.
+
+Device: this task expects a CUDA GPU. Tensors returned by sample_batch /
+eval_set live on DEVICE (cuda). Sampling itself runs on the CPU with a seeded
+generator, so the data stream is the same on every device. DEVICE=cpu in the
+environment forces the CPU (about 25 s per check on a laptop); there is no
+automatic fallback.
 """
+import os
+
 import torch
+
+DEVICE = torch.device(os.environ.get("DEVICE", "cuda"))
+if DEVICE.type == "cuda" and not torch.cuda.is_available():
+    raise RuntimeError("No CUDA GPU found. This task is meant to run on a GPU; "
+                       "set DEVICE=cpu to run on the CPU anyway.")
 
 VOCAB = 32            # content tokens 0 .. VOCAB-1
 BOS = VOCAB           # beginning-of-sequence token
@@ -83,22 +96,22 @@ def sample_sequences(domains: torch.Tensor, gen: torch.Generator) -> torch.Tenso
         idx = (table == k).nonzero(as_tuple=True)[0]
         if idx.numel():
             toks[idx, 1:] = _sample_chain(TABLES[k], idx.numel(), gen)
-    return toks
+    return toks.to(DEVICE)
 
 
 def sample_batch(batch_size: int, gen: torch.Generator):
     """A mixed training batch.
 
-    Returns
+    Returns (both on DEVICE)
         tokens : (batch_size, SEQ_LEN + 1) long, tokens[:, 0] == BOS
         labels : (batch_size,) long, domain id of each sequence
     """
     labels = torch.multinomial(DOMAIN_PROBS, batch_size, replacement=True, generator=gen)
-    return sample_sequences(labels, gen), labels
+    return sample_sequences(labels, gen), labels.to(DEVICE)
 
 
 def eval_set(domain: int, n: int = 512, seed: int = 99) -> torch.Tensor:
-    """Fixed held-out sequences from one domain, (n, SEQ_LEN + 1)."""
+    """Fixed held-out sequences from one domain, (n, SEQ_LEN + 1), on DEVICE."""
     gen = torch.Generator().manual_seed(seed * 1000 + domain)
     return sample_sequences(torch.full((n,), domain, dtype=torch.long), gen)
 

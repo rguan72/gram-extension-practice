@@ -7,7 +7,7 @@ import time
 
 import torch
 
-from data import BATCH_SIZE, TRAIN_STEPS, DUAL_USE, sample_batch, sequence_losses, domain_loss
+from data import BATCH_SIZE, TRAIN_STEPS, DUAL_USE, DEVICE, sample_batch, sequence_losses, domain_loss
 from model import Config, GPT
 
 # --- knobs -----------------------------------------------------------------
@@ -31,6 +31,8 @@ RANDOM_ON = _e("RANDOM_ON", "all")              # "all": random extra modules on
 def build_mask(labels, n_modules, gen):
     """(B, n_modules) mask: dual-use sequences enable their own module; core
     sequences enable random modules with prob P_RANDOM_ENABLE."""
+    device = labels.device
+    labels = labels.cpu()            # build on the CPU with the seeded generator, move at the end
     B = labels.numel()
     mask = torch.zeros(B, n_modules)
     for m, d in enumerate(DUAL_USE):
@@ -47,13 +49,13 @@ def build_mask(labels, n_modules, gen):
             which = torch.randint(0, n_modules, (n_core,), generator=gen)
             extra[flip, which[flip]] = 1.0
         mask[rows] = torch.maximum(mask[rows], extra)
-    return mask
+    return mask.to(device)
 
 
 def train_gram(seed: int = 0, steps: int = TRAIN_STEPS, log=print) -> GPT:
     torch.manual_seed(seed)
     cfg = Config(n_modules=len(DUAL_USE), d_module=D_MODULE)
-    model = GPT(cfg)
+    model = GPT(cfg).to(DEVICE)
     general = model.general_parameters()
     modules = model.module_parameters()
     if FREEZE_SET == "mlp":

@@ -15,8 +15,9 @@ checker compares the candidate's model against an all-data baseline and a
 core-only (data-filtered) baseline on retention, removal, core robustness and
 composition of two modules.
 
-The whole thing runs on CPU: a `check.py` run is ~25 s once the baselines are
-cached (~45 s the first time).
+The code expects a CUDA GPU (`DEVICE=cpu` forces the CPU). Baselines are
+cached per device after the first `check.py` run. On a laptop CPU a check is
+~25 s warm, ~45 s cold; on any GPU it is faster than that.
 
 ## Reference solution
 
